@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>リッチ投稿ツール(自分用)</title>
+<title>リッチ投稿ツール</title>
 <script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
 <style>
   :root{
@@ -20,103 +20,53 @@
     font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,sans-serif;
     max-width:520px; margin-inline:auto;
   }
-  h1{font-size:18px; margin:8px 0 4px;}
-  p.desc{color:var(--muted); font-size:13px; margin:0 0 20px;}
+  h1{font-size:18px; margin:4px 0 12px;}
   section{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px;}
-  section h2{font-size:14px; margin:0 0 12px; color:var(--muted); font-weight:600; letter-spacing:.02em;}
-  label{display:block; font-size:12px; color:var(--muted); margin:10px 0 4px;}
+  label{display:block; font-size:12px; color:var(--muted); margin:12px 0 4px;}
+  label:first-child{margin-top:0;}
   input[type=text], input[type=url], textarea{
     width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px;
     background:var(--bg); color:var(--text); font-size:14px; font-family:inherit;
   }
-  textarea{resize:vertical; min-height:70px;}
-  .btn-row{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
-  button{
-    appearance:none; border:none; border-radius:10px; padding:11px 16px; font-size:14px;
-    font-weight:600; cursor:pointer; color:#fff; background:var(--accent);
-  }
-  button:hover{background:var(--accent-dark);}
-  button.secondary{background:transparent; color:var(--text); border:1px solid var(--border);}
-  button.ghost{background:transparent; color:var(--muted); border:none; padding:4px 8px; font-weight:500;}
-  button:disabled{opacity:.45; cursor:not-allowed;}
-  .link-row{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
-  .link-row input{flex:1;}
-  textarea#jsonInput, textarea#jsonRawEdit{
+  textarea#jsonInput{
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
-    min-height:140px; white-space:pre;
+    min-height:150px; white-space:pre; resize:vertical;
   }
-  .button-editor{border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;}
-  .button-editor .be-label{font-size:12px; color:var(--muted); margin-bottom:6px;}
-  .button-editor input{margin-top:0;}
-  details{margin-top:12px;}
-  details summary{cursor:pointer; font-size:13px; color:var(--muted); font-weight:600;}
-  #status{font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px; display:none;}
+  #sendBtn{
+    appearance:none; border:none; border-radius:12px; padding:15px; font-size:16px; width:100%;
+    font-weight:700; cursor:pointer; color:#fff; background:var(--accent); margin-top:4px;
+  }
+  #sendBtn:disabled{opacity:.4; cursor:not-allowed;}
+  .button-editor{border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:8px;}
+  .button-editor .be-name{font-size:12px; color:var(--muted); margin-bottom:4px;}
+  #status{font-size:13px; padding:10px 12px; border-radius:10px; margin-bottom:12px; display:none;}
   #status.ok{display:block; background:#06c75522; color:var(--accent-dark);}
   #status.err{display:block; background:#e5484d22; color:#e5484d;}
   #status.info{display:block; background:#3b82f622; color:#3b82f6;}
   .preview{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg);}
-  .preview img{width:100%; display:block; max-height:200px; object-fit:cover;}
+  .preview img{width:100%; display:block; max-height:220px; object-fit:cover;}
   .preview-body{padding:14px;}
   .preview-title{font-weight:700; font-size:15px; margin:0 0 6px;}
-  .preview-text{font-size:13px; color:var(--muted); white-space:pre-wrap; margin:0;}
-  .preview-buttons{border-top:1px solid var(--border);}
+  .preview-text{font-size:13px; color:var(--muted); white-space:pre-wrap; margin:0 0 4px;}
   .preview-buttons a{
     display:block; text-align:center; padding:11px; font-size:13px; font-weight:600;
     color:var(--accent-dark); text-decoration:none; border-top:1px solid var(--border);
   }
-  .preview-buttons a:first-child{border-top:none;}
-  small.hint{display:block; color:var(--muted); font-size:11px; margin-top:6px; line-height:1.5;}
-  footer{text-align:center; color:var(--muted); font-size:11px; margin-top:24px; padding-bottom:24px;}
+  h2{font-size:13px; margin:0 0 10px; color:var(--muted); font-weight:600;}
 </style>
 </head>
 <body>
 
 <h1>リッチ投稿ツール</h1>
-<p class="desc">自分が管理するオプチャ・グループ向けの、カード型メッセージ送信ツールです。LINEのLIFF機能で、自分のアカウントとしてトークに送信します。</p>
-
 <div id="status"></div>
 
-<section id="setupSection">
-  <h2>① 初回設定 (LIFF ID)</h2>
-  <label for="liffIdInput">LIFF ID</label>
-  <input type="text" id="liffIdInput" placeholder="1234567890-AbCdEfGh">
-  <small class="hint">LINE Developersコンソールで作成したLIFFアプリのIDを入力してください。この端末のブラウザに保存され、次回から自動で使われます。</small>
-  <div class="btn-row">
-    <button id="saveLiffIdBtn">保存して初期化</button>
-  </div>
-</section>
-
-<section id="composeSection" style="display:none;">
-  <h2>② Flex Messageのコードを貼り付け</h2>
+<section>
   <label for="jsonInput">Flex MessageのJSON</label>
-  <textarea id="jsonInput" placeholder='{"type":"flex","altText":"...","contents":{...}}&#10;または [{"type":"flex", ...}, ...] のような配列でもOK'></textarea>
-  <small class="hint">コピーしてきたFlex Message（1件のオブジェクト、または複数まとめた配列）をそのまま貼り付けてください。</small>
-  <div class="btn-row">
-    <button type="button" id="loadJsonBtn">読み込む</button>
-    <button type="button" class="secondary" id="resetLiffBtn">LIFF ID再設定</button>
-  </div>
+  <textarea id="jsonInput" placeholder='ここにFlex MessageのJSONを貼り付け'></textarea>
 
-  <details id="buttonEditorDetails" style="display:none;">
-    <summary>ボタンのURLを編集</summary>
-    <div id="buttonEditors" style="margin-top:10px;"></div>
-  </details>
+  <div id="buttonEditors"></div>
 
-  <details id="rawEditDetails" style="display:none;">
-    <summary>JSONを直接編集する</summary>
-    <textarea id="jsonRawEdit" style="margin-top:10px;"></textarea>
-    <div class="btn-row">
-      <button type="button" class="secondary" id="applyRawEditBtn">この内容を反映</button>
-    </div>
-  </details>
-
-  <div class="btn-row">
-    <button id="sendBtn" disabled>送信先を選んで送信</button>
-  </div>
-  <small class="hint">
-    ※ オプチャに直接送信したい場合：下の<b>LIFF URL</b>（GitHub PagesのURLではありません）を、送りたいオプチャの中に一度メッセージとして貼っておき、<b>そのオプチャの中からそのリンクをタップして</b>このページを開いてください。それ以外の開き方（LIFF ID再設定直後など）だと「送信先を選んで送信」になり、オプチャは選択肢に出ません。
-  </small>
-  <label style="margin-top:14px;">オプチャに貼るLIFF URL</label>
-  <input type="text" id="liffUrlDisplay" readonly onclick="this.select()">
+  <button id="sendBtn" disabled>このトークに送信</button>
 </section>
 
 <section id="previewSection" style="display:none;">
@@ -124,84 +74,25 @@
   <div class="preview" id="previewCard"></div>
 </section>
 
-<footer>個人利用向け・LINE公式のLIFF機能を使用しています</footer>
-
 <script>
+const LIFF_ID = '2006439463-vBCAM0Fz';
+
 const $ = (id) => document.getElementById(id);
 const statusEl = $('status');
+function showStatus(msg, type){ statusEl.textContent = msg; statusEl.className = type; }
 
-function showStatus(msg, type){
-  statusEl.textContent = msg;
-  statusEl.className = type;
-}
-
-function getSavedLiffId(){
-  return localStorage.getItem('liffId') || '';
-}
-
-function escapeHtml(s){
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-
-// 読み込んだメッセージ配列（送信時にこれをそのまま使う。ボタン編集はこのオブジェクトを直接書き換える）
 let loadedMessages = null;
+let ready = false;
 
-// action.type === 'uri' を再帰的に探して { action, pathLabel } の配列にする
-function findUriActions(node, pathLabel=''){
-  const found = [];
-  if (Array.isArray(node)){
-    node.forEach((item, i) => found.push(...findUriActions(item, `${pathLabel}[${i}]`)));
-    return found;
-  }
+// action.type === 'uri' を再帰的に探す
+function findUriActions(node, out){
+  if (Array.isArray(node)){ node.forEach(n => findUriActions(n, out)); return out; }
   if (node && typeof node === 'object'){
-    if (node.type === 'uri' && typeof node.uri === 'string'){
-      found.push({ action: node, pathLabel });
-    }
-    for (const key of Object.keys(node)){
-      found.push(...findUriActions(node[key], pathLabel ? `${pathLabel}.${key}` : key));
-    }
+    if (node.type === 'uri' && typeof node.uri === 'string') out.push(node);
+    for (const k of Object.keys(node)) findUriActions(node[k], out);
   }
-  return found;
+  return out;
 }
-
-function renderButtonEditors(){
-  const container = $('buttonEditors');
-  container.innerHTML = '';
-  const actions = findUriActions(loadedMessages);
-  if (actions.length === 0){
-    $('buttonEditorDetails').style.display = 'none';
-    return;
-  }
-  $('buttonEditorDetails').style.display = 'block';
-  actions.forEach(({action}, i) => {
-    const box = document.createElement('div');
-    box.className = 'button-editor';
-    box.innerHTML = `
-      <div class="be-label">ボタン ${i + 1}${action.label ? '：' + escapeHtml(action.label) : ''}</div>
-      <label style="margin-top:0;">ラベル</label>
-      <input type="text" class="be-label-input" value="${escapeHtml(action.label || '')}">
-      <label>リンク先URL</label>
-      <input type="url" class="be-url-input" value="${escapeHtml(action.uri || '')}">
-    `;
-    box.querySelector('.be-label-input').addEventListener('input', (e) => {
-      action.label = e.target.value;
-      syncRawEdit();
-      renderPreview();
-    });
-    box.querySelector('.be-url-input').addEventListener('input', (e) => {
-      action.uri = e.target.value;
-      syncRawEdit();
-      renderPreview();
-    });
-    container.appendChild(box);
-  });
-}
-
-function syncRawEdit(){
-  $('jsonRawEdit').value = JSON.stringify(loadedMessages, null, 2);
-}
-
-// 汎用Flex bubbleプレビュー（hero画像 / body配下のtext / footer配下のbuttonを収集して簡易表示）
 function collectTexts(node, out){
   if (Array.isArray(node)){ node.forEach(n => collectTexts(n, out)); return; }
   if (node && typeof node === 'object'){
@@ -216,37 +107,50 @@ function collectButtons(node, out){
     if (node.contents) collectButtons(node.contents, out);
   }
 }
-function findHeroImage(bubble){
-  return bubble && bubble.hero && bubble.hero.type === 'image' ? bubble.hero.url : null;
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function renderButtonEditors(){
+  const box = $('buttonEditors');
+  box.innerHTML = '';
+  const actions = findUriActions(loadedMessages, []);
+  actions.forEach((action, i) => {
+    const el = document.createElement('div');
+    el.className = 'button-editor';
+    el.innerHTML = `
+      <div class="be-name">ボタン${i+1}のリンク先URL${action.label ? '（' + escapeHtml(action.label) + '）' : ''}</div>
+      <input type="url" value="${escapeHtml(action.uri || '')}">
+    `;
+    el.querySelector('input').addEventListener('input', (e) => {
+      action.uri = e.target.value;
+      $('jsonInput').value = JSON.stringify(loadedMessages.length === 1 ? loadedMessages[0] : loadedMessages, null, 2);
+      renderPreview();
+    });
+    box.appendChild(el);
+  });
 }
 
 function renderPreview(){
-  if (!loadedMessages){
-    $('previewSection').style.display = 'none';
-    return;
-  }
-  const messages = Array.isArray(loadedMessages) ? loadedMessages : [loadedMessages];
+  if (!loadedMessages){ $('previewSection').style.display = 'none'; return; }
   let html = '';
-  messages.forEach(msg => {
-    if (msg.type !== 'flex' || !msg.contents) {
-      html += `<div class="preview-body"><p class="preview-text">${escapeHtml(msg.type)}メッセージ（プレビュー非対応）</p></div>`;
+  loadedMessages.forEach(msg => {
+    if (msg.type !== 'flex' || !msg.contents){
+      html += `<div class="preview-body"><p class="preview-text">${escapeHtml(msg.type || '?')}メッセージ</p></div>`;
       return;
     }
     const bubble = msg.contents.type === 'carousel' ? (msg.contents.contents || [])[0] : msg.contents;
     if (!bubble) return;
-    const image = findHeroImage(bubble);
+    const image = bubble.hero && bubble.hero.type === 'image' ? bubble.hero.url : null;
     const texts = []; collectTexts(bubble.body, texts);
     const buttons = []; collectButtons(bubble.footer, buttons);
-
-    if (image) html += `<img src="${image}" alt="">`;
+    if (image) html += `<img src="${escapeHtml(image)}" alt="">`;
     html += `<div class="preview-body">`;
-    texts.slice(0,4).forEach((t, i) => {
-      html += `<p class="${i === 0 ? 'preview-title' : 'preview-text'}">${escapeHtml(t)}</p>`;
-    });
+    texts.slice(0,5).forEach((t,i) => html += `<p class="${i===0?'preview-title':'preview-text'}">${escapeHtml(t)}</p>`);
     html += `</div>`;
     if (buttons.length){
       html += `<div class="preview-buttons">`;
-      buttons.forEach(a => html += `<a href="${escapeHtml(a.uri || '#')}" target="_blank" rel="noopener">${escapeHtml(a.label || 'リンク')}</a>`);
+      buttons.forEach(a => html += `<a href="${escapeHtml(a.uri||'#')}" target="_blank" rel="noopener">${escapeHtml(a.label||'リンク')}</a>`);
       html += `</div>`;
     }
   });
@@ -254,108 +158,52 @@ function renderPreview(){
   $('previewSection').style.display = 'block';
 }
 
-function loadFromJsonText(text){
-  let parsed;
+// 貼り付け／編集のたびにパースしてプレビューとボタン欄を更新
+$('jsonInput').addEventListener('input', () => {
+  const text = $('jsonInput').value.trim();
+  if (!text){ loadedMessages = null; $('buttonEditors').innerHTML=''; renderPreview(); updateSendBtn(); return; }
   try{
-    parsed = JSON.parse(text);
+    const parsed = JSON.parse(text);
+    loadedMessages = Array.isArray(parsed) ? parsed : [parsed];
+    renderButtonEditors();
+    renderPreview();
+    showStatus('', '');
   }catch(e){
-    showStatus('JSONの解析に失敗しました: ' + e.message, 'err');
-    return false;
+    loadedMessages = null;
+    $('buttonEditors').innerHTML = '';
+    $('previewSection').style.display = 'none';
+    showStatus('JSONの形式が正しくありません', 'err');
   }
-  loadedMessages = Array.isArray(parsed) ? parsed : [parsed];
-  syncRawEdit();
-  renderButtonEditors();
-  renderPreview();
-  $('rawEditDetails').style.display = 'block';
-  $('sendBtn').disabled = false;
-  showStatus('読み込みました。内容を確認して送信してください。', 'ok');
-  return true;
+  updateSendBtn();
+});
+
+function updateSendBtn(){
+  $('sendBtn').disabled = !(ready && loadedMessages);
 }
-
-$('loadJsonBtn').addEventListener('click', () => {
-  loadFromJsonText($('jsonInput').value);
-});
-
-$('applyRawEditBtn').addEventListener('click', () => {
-  if (loadFromJsonText($('jsonRawEdit').value)){
-    $('jsonInput').value = $('jsonRawEdit').value;
-  }
-});
-
-let sendMode = 'picker'; // 'direct' = 開いたトークにそのまま送信 / 'picker' = 送信先を選んで送信（オプチャは選択肢に出ません）
 
 $('sendBtn').addEventListener('click', async () => {
   if (!loadedMessages) return;
   try{
-    if (sendMode === 'direct'){
-      await liff.sendMessages(loadedMessages);
-      showStatus('このトークに送信しました。', 'ok');
-      return;
-    }
-    if (!liff.isApiAvailable('shareTargetPicker')){
-      showStatus('この環境では送信できません。送りたいオプチャ・トークの中に貼ったリンクをタップして開き直してください。', 'err');
-      return;
-    }
-    const res = await liff.shareTargetPicker(loadedMessages);
-    if (res){
-      showStatus('送信しました。（オプチャは送信先の一覧に出ません）', 'ok');
-    }else{
-      showStatus('送信先の選択がキャンセルされました。', 'info');
-    }
+    await liff.sendMessages(loadedMessages);
+    showStatus('このトークに送信しました。', 'ok');
   }catch(e){
     showStatus('送信に失敗しました: ' + e.message, 'err');
   }
 });
 
-$('resetLiffBtn').addEventListener('click', () => {
-  localStorage.removeItem('liffId');
-  location.reload();
-});
-
-$('saveLiffIdBtn').addEventListener('click', async () => {
-  const id = $('liffIdInput').value.trim();
-  if (!id){
-    showStatus('LIFF IDを入力してください。', 'err');
-    return;
-  }
-  localStorage.setItem('liffId', id);
-  await initLiff(id);
-});
-
-const DIRECT_SEND_CONTEXTS = ['utou', 'room', 'group', 'square_chat'];
-
-async function initLiff(liffId){
+(async function boot(){
   try{
-    showStatus('初期化中...', 'info');
-    await liff.init({ liffId });
-    if (!liff.isLoggedIn()){
-      liff.login();
-      return;
-    }
-    $('setupSection').style.display = 'none';
-    $('composeSection').style.display = 'block';
-    $('liffUrlDisplay').value = 'https://liff.line.me/' + liffId;
-
-    const ctx = liff.getContext ? liff.getContext() : null;
-    if (ctx && DIRECT_SEND_CONTEXTS.includes(ctx.type) && liff.isApiAvailable('sendMessages')){
-      sendMode = 'direct';
-      $('sendBtn').textContent = 'このトークに送信';
-      showStatus('このトークに直接送信できます。Flex MessageのJSONを貼り付けてください。', 'ok');
+    await liff.init({ liffId: LIFF_ID });
+    if (!liff.isLoggedIn()){ liff.login(); return; }
+    if (!liff.isApiAvailable('sendMessages')){
+      showStatus('このトークには送信できません。送りたいオプチャ・トークの中に貼ったこのページのリンクを、そのトークの中からタップして開いてください。', 'info');
     }else{
-      sendMode = 'picker';
-      $('sendBtn').textContent = '送信先を選んで送信';
-      showStatus('準備完了。ただしこの開き方だとオプチャには直接送信できません（下の注意参照）。', 'info');
+      ready = true;
+      showStatus('準備完了。JSONを貼り付けて送信してください。', 'ok');
     }
+    updateSendBtn();
   }catch(e){
-    showStatus('初期化に失敗しました: ' + e.message + '（LIFF IDを確認してください）', 'err');
-  }
-}
-
-(function boot(){
-  const saved = getSavedLiffId();
-  if (saved){
-    $('liffIdInput').value = saved;
-    initLiff(saved);
+    showStatus('初期化に失敗しました: ' + e.message, 'err');
   }
 })();
 </script>

@@ -41,6 +41,15 @@
   button:disabled{opacity:.45; cursor:not-allowed;}
   .link-row{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
   .link-row input{flex:1;}
+  textarea#jsonInput, textarea#jsonRawEdit{
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:12px;
+    min-height:140px; white-space:pre;
+  }
+  .button-editor{border:1px solid var(--border); border-radius:10px; padding:10px; margin-bottom:8px;}
+  .button-editor .be-label{font-size:12px; color:var(--muted); margin-bottom:6px;}
+  .button-editor input{margin-top:0;}
+  details{margin-top:12px;}
+  details summary{cursor:pointer; font-size:13px; color:var(--muted); font-weight:600;}
   #status{font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px; display:none;}
   #status.ok{display:block; background:#06c75522; color:var(--accent-dark);}
   #status.err{display:block; background:#e5484d22; color:#e5484d;}
@@ -78,24 +87,30 @@
 </section>
 
 <section id="composeSection" style="display:none;">
-  <h2>② メッセージ作成</h2>
+  <h2>② Flex Messageのコードを貼り付け</h2>
+  <label for="jsonInput">Flex MessageのJSON</label>
+  <textarea id="jsonInput" placeholder='{"type":"flex","altText":"...","contents":{...}}&#10;または [{"type":"flex", ...}, ...] のような配列でもOK'></textarea>
+  <small class="hint">コピーしてきたFlex Message（1件のオブジェクト、または複数まとめた配列）をそのまま貼り付けてください。</small>
+  <div class="btn-row">
+    <button type="button" id="loadJsonBtn">読み込む</button>
+    <button type="button" class="secondary" id="resetLiffBtn">LIFF ID再設定</button>
+  </div>
 
-  <label for="titleInput">タイトル</label>
-  <input type="text" id="titleInput" placeholder="例: 今週の予定について">
+  <details id="buttonEditorDetails" style="display:none;">
+    <summary>ボタンのURLを編集</summary>
+    <div id="buttonEditors" style="margin-top:10px;"></div>
+  </details>
 
-  <label for="bodyInput">本文</label>
-  <textarea id="bodyInput" placeholder="本文を入力"></textarea>
-
-  <label for="imageInput">画像URL（任意）</label>
-  <input type="url" id="imageInput" placeholder="https://example.com/image.jpg">
-
-  <label>ボタン（任意・最大4つ）</label>
-  <div id="linkRows"></div>
-  <button type="button" class="secondary" id="addLinkBtn">＋ ボタンを追加</button>
+  <details id="rawEditDetails" style="display:none;">
+    <summary>JSONを直接編集する</summary>
+    <textarea id="jsonRawEdit" style="margin-top:10px;"></textarea>
+    <div class="btn-row">
+      <button type="button" class="secondary" id="applyRawEditBtn">この内容を反映</button>
+    </div>
+  </details>
 
   <div class="btn-row">
-    <button id="sendBtn">送信先を選んで送信</button>
-    <button class="secondary" id="resetLiffBtn">LIFF ID再設定</button>
+    <button id="sendBtn" disabled>送信先を選んで送信</button>
   </div>
 </section>
 
@@ -119,113 +134,157 @@ function getSavedLiffId(){
   return localStorage.getItem('liffId') || '';
 }
 
-let linkRowCount = 0;
-function addLinkRow(label='', url=''){
-  if (linkRowCount >= 4) return;
-  linkRowCount++;
-  const row = document.createElement('div');
-  row.className = 'link-row';
-  row.innerHTML = `
-    <input type="text" class="linkLabel" placeholder="ボタン文言" value="${label.replace(/"/g,'&quot;')}">
-    <input type="url" class="linkUrl" placeholder="https://..." value="${url.replace(/"/g,'&quot;')}">
-    <button type="button" class="ghost removeLinkBtn">✕</button>
-  `;
-  row.querySelector('.removeLinkBtn').addEventListener('click', () => {
-    row.remove();
-    linkRowCount--;
-    renderPreview();
-  });
-  row.querySelectorAll('input').forEach(i => i.addEventListener('input', renderPreview));
-  $('linkRows').appendChild(row);
+function escapeHtml(s){
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
-$('addLinkBtn').addEventListener('click', () => addLinkRow());
+// 読み込んだメッセージ配列（送信時にこれをそのまま使う。ボタン編集はこのオブジェクトを直接書き換える）
+let loadedMessages = null;
 
-function collectLinks(){
-  const rows = document.querySelectorAll('#linkRows .link-row');
-  const links = [];
-  rows.forEach(r => {
-    const label = r.querySelector('.linkLabel').value.trim();
-    const url = r.querySelector('.linkUrl').value.trim();
-    if (label && url) links.push({label, url});
+// action.type === 'uri' を再帰的に探して { action, pathLabel } の配列にする
+function findUriActions(node, pathLabel=''){
+  const found = [];
+  if (Array.isArray(node)){
+    node.forEach((item, i) => found.push(...findUriActions(item, `${pathLabel}[${i}]`)));
+    return found;
+  }
+  if (node && typeof node === 'object'){
+    if (node.type === 'uri' && typeof node.uri === 'string'){
+      found.push({ action: node, pathLabel });
+    }
+    for (const key of Object.keys(node)){
+      found.push(...findUriActions(node[key], pathLabel ? `${pathLabel}.${key}` : key));
+    }
+  }
+  return found;
+}
+
+function renderButtonEditors(){
+  const container = $('buttonEditors');
+  container.innerHTML = '';
+  const actions = findUriActions(loadedMessages);
+  if (actions.length === 0){
+    $('buttonEditorDetails').style.display = 'none';
+    return;
+  }
+  $('buttonEditorDetails').style.display = 'block';
+  actions.forEach(({action}, i) => {
+    const box = document.createElement('div');
+    box.className = 'button-editor';
+    box.innerHTML = `
+      <div class="be-label">ボタン ${i + 1}${action.label ? '：' + escapeHtml(action.label) : ''}</div>
+      <label style="margin-top:0;">ラベル</label>
+      <input type="text" class="be-label-input" value="${escapeHtml(action.label || '')}">
+      <label>リンク先URL</label>
+      <input type="url" class="be-url-input" value="${escapeHtml(action.uri || '')}">
+    `;
+    box.querySelector('.be-label-input').addEventListener('input', (e) => {
+      action.label = e.target.value;
+      syncRawEdit();
+      renderPreview();
+    });
+    box.querySelector('.be-url-input').addEventListener('input', (e) => {
+      action.uri = e.target.value;
+      syncRawEdit();
+      renderPreview();
+    });
+    container.appendChild(box);
   });
-  return links;
+}
+
+function syncRawEdit(){
+  $('jsonRawEdit').value = JSON.stringify(loadedMessages, null, 2);
+}
+
+// 汎用Flex bubbleプレビュー（hero画像 / body配下のtext / footer配下のbuttonを収集して簡易表示）
+function collectTexts(node, out){
+  if (Array.isArray(node)){ node.forEach(n => collectTexts(n, out)); return; }
+  if (node && typeof node === 'object'){
+    if (node.type === 'text' && typeof node.text === 'string') out.push(node.text);
+    if (node.contents) collectTexts(node.contents, out);
+  }
+}
+function collectButtons(node, out){
+  if (Array.isArray(node)){ node.forEach(n => collectButtons(n, out)); return; }
+  if (node && typeof node === 'object'){
+    if (node.type === 'button' && node.action) out.push(node.action);
+    if (node.contents) collectButtons(node.contents, out);
+  }
+}
+function findHeroImage(bubble){
+  return bubble && bubble.hero && bubble.hero.type === 'image' ? bubble.hero.url : null;
 }
 
 function renderPreview(){
-  const title = $('titleInput').value.trim();
-  const body = $('bodyInput').value.trim();
-  const image = $('imageInput').value.trim();
-  const links = collectLinks();
-
-  if (!title && !body && !image && links.length === 0){
+  if (!loadedMessages){
     $('previewSection').style.display = 'none';
     return;
   }
-  $('previewSection').style.display = 'block';
-
+  const messages = Array.isArray(loadedMessages) ? loadedMessages : [loadedMessages];
   let html = '';
-  if (image) html += `<img src="${image}" alt="">`;
-  html += `<div class="preview-body">`;
-  if (title) html += `<p class="preview-title">${escapeHtml(title)}</p>`;
-  if (body) html += `<p class="preview-text">${escapeHtml(body)}</p>`;
-  html += `</div>`;
-  if (links.length){
-    html += `<div class="preview-buttons">`;
-    links.forEach(l => html += `<a href="${l.url}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`);
+  messages.forEach(msg => {
+    if (msg.type !== 'flex' || !msg.contents) {
+      html += `<div class="preview-body"><p class="preview-text">${escapeHtml(msg.type)}メッセージ（プレビュー非対応）</p></div>`;
+      return;
+    }
+    const bubble = msg.contents.type === 'carousel' ? (msg.contents.contents || [])[0] : msg.contents;
+    if (!bubble) return;
+    const image = findHeroImage(bubble);
+    const texts = []; collectTexts(bubble.body, texts);
+    const buttons = []; collectButtons(bubble.footer, buttons);
+
+    if (image) html += `<img src="${image}" alt="">`;
+    html += `<div class="preview-body">`;
+    texts.slice(0,4).forEach((t, i) => {
+      html += `<p class="${i === 0 ? 'preview-title' : 'preview-text'}">${escapeHtml(t)}</p>`;
+    });
     html += `</div>`;
-  }
+    if (buttons.length){
+      html += `<div class="preview-buttons">`;
+      buttons.forEach(a => html += `<a href="${escapeHtml(a.uri || '#')}" target="_blank" rel="noopener">${escapeHtml(a.label || 'リンク')}</a>`);
+      html += `</div>`;
+    }
+  });
   $('previewCard').innerHTML = html;
+  $('previewSection').style.display = 'block';
 }
 
-function escapeHtml(s){
-  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function loadFromJsonText(text){
+  let parsed;
+  try{
+    parsed = JSON.parse(text);
+  }catch(e){
+    showStatus('JSONの解析に失敗しました: ' + e.message, 'err');
+    return false;
+  }
+  loadedMessages = Array.isArray(parsed) ? parsed : [parsed];
+  syncRawEdit();
+  renderButtonEditors();
+  renderPreview();
+  $('rawEditDetails').style.display = 'block';
+  $('sendBtn').disabled = false;
+  showStatus('読み込みました。内容を確認して送信してください。', 'ok');
+  return true;
 }
 
-['titleInput','bodyInput','imageInput'].forEach(id => {
-  $(id).addEventListener('input', renderPreview);
+$('loadJsonBtn').addEventListener('click', () => {
+  loadFromJsonText($('jsonInput').value);
 });
 
-function buildFlexMessage(){
-  const title = $('titleInput').value.trim();
-  const body = $('bodyInput').value.trim();
-  const image = $('imageInput').value.trim();
-  const links = collectLinks();
-
-  const bodyContents = [];
-  if (title) bodyContents.push({ type:'text', text:title, weight:'bold', size:'md', wrap:true });
-  if (body) bodyContents.push({ type:'text', text:body, size:'sm', color:'#8c8c8c', wrap:true, margin: title ? 'md' : 'none' });
-  if (bodyContents.length === 0) bodyContents.push({ type:'text', text:' ', size:'sm' });
-
-  const bubble = {
-    type: 'bubble',
-    body: { type:'box', layout:'vertical', contents: bodyContents }
-  };
-  if (image){
-    bubble.hero = { type:'image', url:image, size:'full', aspectRatio:'20:13', aspectMode:'cover' };
+$('applyRawEditBtn').addEventListener('click', () => {
+  if (loadFromJsonText($('jsonRawEdit').value)){
+    $('jsonInput').value = $('jsonRawEdit').value;
   }
-  if (links.length){
-    bubble.footer = {
-      type:'box', layout:'vertical', spacing:'sm',
-      contents: links.map(l => ({
-        type:'button', style:'link', height:'sm',
-        action:{ type:'uri', label:l.label.slice(0,40), uri:l.url }
-      }))
-    };
-  }
-
-  const altText = (title || body || 'メッセージ').slice(0,60);
-  return { type:'flex', altText, contents: bubble };
-}
+});
 
 $('sendBtn').addEventListener('click', async () => {
-  const flex = buildFlexMessage();
+  if (!loadedMessages) return;
   try{
     if (!liff.isApiAvailable('shareTargetPicker')){
       showStatus('この環境ではshareTargetPickerが使えません。LINEアプリ内で開いてください。', 'err');
       return;
     }
-    const res = await liff.shareTargetPicker([flex]);
+    const res = await liff.shareTargetPicker(loadedMessages);
     if (res){
       showStatus('送信しました。', 'ok');
     }else{
@@ -261,8 +320,7 @@ async function initLiff(liffId){
     }
     $('setupSection').style.display = 'none';
     $('composeSection').style.display = 'block';
-    if (document.querySelectorAll('#linkRows .link-row').length === 0) addLinkRow();
-    showStatus('準備完了。メッセージを作成して送信できます。', 'ok');
+    showStatus('準備完了。Flex MessageのJSONを貼り付けてください。', 'ok');
   }catch(e){
     showStatus('初期化に失敗しました: ' + e.message + '（LIFF IDを確認してください）', 'err');
   }

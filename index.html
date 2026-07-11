@@ -195,11 +195,18 @@ $('sendBtn').addEventListener('click', async () => {
   try{
     await liff.init({ liffId: LIFF_ID });
     if (!liff.isLoggedIn()){ liff.login(); return; }
-    if (!liff.isApiAvailable('sendMessages')){
-      showStatus('このトークには送信できません。送りたいオプチャ・トークの中に貼ったこのページのリンクを、そのトークの中からタップして開いてください。', 'info');
-    }else{
-      ready = true;
+
+    // sendMessagesが使えるのはトーク内（utou/group/room/square_chat）から開いた場合のみ。
+    // isApiAvailableは'sendMessages'を受け付けないため、getContext()のtypeで判定する。
+    const ctx = liff.getContext ? liff.getContext() : null;
+    const type = ctx && ctx.type;
+    const inChat = ['utou', 'group', 'room', 'square_chat'].includes(type);
+
+    ready = true; // JSONさえ入れれば送信ボタンは押せるようにし、失敗時はエラー表示
+    if (inChat){
       showStatus('準備完了。JSONを貼り付けて送信してください。', 'ok');
+    }else{
+      showStatus('このページはトークの外（' + (type || '不明') + '）から開かれています。送りたいオプチャ・トークの中に貼った liff.line.me のリンクを、そのトークの中からタップして開いてください。', 'info');
     }
     updateSendBtn();
   }catch(e){

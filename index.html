@@ -112,6 +112,9 @@
   <div class="btn-row">
     <button id="sendBtn" disabled>送信先を選んで送信</button>
   </div>
+  <small class="hint">
+    ※ オプチャに直接送信したい場合：このページのURLを、送りたいオプチャの中に一度メッセージとして貼っておき、<b>そのオプチャの中からそのリンクをタップして</b>このページを開いてください。それ以外の開き方（LIFF ID再設定直後など）だと「送信先を選んで送信」になり、オプチャは選択肢に出ません。
+  </small>
 </section>
 
 <section id="previewSection" style="display:none;">
@@ -277,16 +280,23 @@ $('applyRawEditBtn').addEventListener('click', () => {
   }
 });
 
+let sendMode = 'picker'; // 'direct' = 開いたトークにそのまま送信 / 'picker' = 送信先を選んで送信（オプチャは選択肢に出ません）
+
 $('sendBtn').addEventListener('click', async () => {
   if (!loadedMessages) return;
   try{
+    if (sendMode === 'direct'){
+      await liff.sendMessages(loadedMessages);
+      showStatus('このトークに送信しました。', 'ok');
+      return;
+    }
     if (!liff.isApiAvailable('shareTargetPicker')){
-      showStatus('この環境ではshareTargetPickerが使えません。LINEアプリ内で開いてください。', 'err');
+      showStatus('この環境では送信できません。送りたいオプチャ・トークの中に貼ったリンクをタップして開き直してください。', 'err');
       return;
     }
     const res = await liff.shareTargetPicker(loadedMessages);
     if (res){
-      showStatus('送信しました。', 'ok');
+      showStatus('送信しました。（オプチャは送信先の一覧に出ません）', 'ok');
     }else{
       showStatus('送信先の選択がキャンセルされました。', 'info');
     }
@@ -310,6 +320,8 @@ $('saveLiffIdBtn').addEventListener('click', async () => {
   await initLiff(id);
 });
 
+const DIRECT_SEND_CONTEXTS = ['utou', 'room', 'group', 'square_chat'];
+
 async function initLiff(liffId){
   try{
     showStatus('初期化中...', 'info');
@@ -320,7 +332,17 @@ async function initLiff(liffId){
     }
     $('setupSection').style.display = 'none';
     $('composeSection').style.display = 'block';
-    showStatus('準備完了。Flex MessageのJSONを貼り付けてください。', 'ok');
+
+    const ctx = liff.getContext ? liff.getContext() : null;
+    if (ctx && DIRECT_SEND_CONTEXTS.includes(ctx.type) && liff.isApiAvailable('sendMessages')){
+      sendMode = 'direct';
+      $('sendBtn').textContent = 'このトークに送信';
+      showStatus('このトークに直接送信できます。Flex MessageのJSONを貼り付けてください。', 'ok');
+    }else{
+      sendMode = 'picker';
+      $('sendBtn').textContent = '送信先を選んで送信';
+      showStatus('準備完了。ただしこの開き方だとオプチャには直接送信できません（下の注意参照）。', 'info');
+    }
   }catch(e){
     showStatus('初期化に失敗しました: ' + e.message + '（LIFF IDを確認してください）', 'err');
   }

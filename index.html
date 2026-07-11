@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>リッチ投稿ツール(自分用)</title>
+<script charset="utf-8" src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+<style>
+  :root{
+    color-scheme: light dark;
+    --bg:#f4f5f7; --card:#ffffff; --text:#1b1b1f; --muted:#6b7280;
+    --accent:#06c755; --accent-dark:#04a344; --border:#e2e4e8;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#14151a; --card:#1e2027; --text:#eef0f3; --muted:#9aa0ab; --border:#2c2f38; }
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0; padding:16px; background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Segoe UI",Roboto,sans-serif;
+    max-width:520px; margin-inline:auto;
+  }
+  h1{font-size:18px; margin:8px 0 4px;}
+  p.desc{color:var(--muted); font-size:13px; margin:0 0 20px;}
+  section{background:var(--card); border:1px solid var(--border); border-radius:14px; padding:16px; margin-bottom:16px;}
+  section h2{font-size:14px; margin:0 0 12px; color:var(--muted); font-weight:600; letter-spacing:.02em;}
+  label{display:block; font-size:12px; color:var(--muted); margin:10px 0 4px;}
+  input[type=text], input[type=url], textarea{
+    width:100%; padding:10px 12px; border:1px solid var(--border); border-radius:10px;
+    background:var(--bg); color:var(--text); font-size:14px; font-family:inherit;
+  }
+  textarea{resize:vertical; min-height:70px;}
+  .btn-row{display:flex; gap:8px; margin-top:14px; flex-wrap:wrap;}
+  button{
+    appearance:none; border:none; border-radius:10px; padding:11px 16px; font-size:14px;
+    font-weight:600; cursor:pointer; color:#fff; background:var(--accent);
+  }
+  button:hover{background:var(--accent-dark);}
+  button.secondary{background:transparent; color:var(--text); border:1px solid var(--border);}
+  button.ghost{background:transparent; color:var(--muted); border:none; padding:4px 8px; font-weight:500;}
+  button:disabled{opacity:.45; cursor:not-allowed;}
+  .link-row{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
+  .link-row input{flex:1;}
+  #status{font-size:12px; padding:8px 10px; border-radius:8px; margin-bottom:10px; display:none;}
+  #status.ok{display:block; background:#06c75522; color:var(--accent-dark);}
+  #status.err{display:block; background:#e5484d22; color:#e5484d;}
+  #status.info{display:block; background:#3b82f622; color:#3b82f6;}
+  .preview{border:1px solid var(--border); border-radius:12px; overflow:hidden; background:var(--bg);}
+  .preview img{width:100%; display:block; max-height:200px; object-fit:cover;}
+  .preview-body{padding:14px;}
+  .preview-title{font-weight:700; font-size:15px; margin:0 0 6px;}
+  .preview-text{font-size:13px; color:var(--muted); white-space:pre-wrap; margin:0;}
+  .preview-buttons{border-top:1px solid var(--border);}
+  .preview-buttons a{
+    display:block; text-align:center; padding:11px; font-size:13px; font-weight:600;
+    color:var(--accent-dark); text-decoration:none; border-top:1px solid var(--border);
+  }
+  .preview-buttons a:first-child{border-top:none;}
+  small.hint{display:block; color:var(--muted); font-size:11px; margin-top:6px; line-height:1.5;}
+  footer{text-align:center; color:var(--muted); font-size:11px; margin-top:24px; padding-bottom:24px;}
+</style>
+</head>
+<body>
+
+<h1>リッチ投稿ツール</h1>
+<p class="desc">自分が管理するオプチャ・グループ向けの、カード型メッセージ送信ツールです。LINEのLIFF機能で、自分のアカウントとしてトークに送信します。</p>
+
+<div id="status"></div>
+
+<section id="setupSection">
+  <h2>① 初回設定 (LIFF ID)</h2>
+  <label for="liffIdInput">LIFF ID</label>
+  <input type="text" id="liffIdInput" placeholder="1234567890-AbCdEfGh">
+  <small class="hint">LINE Developersコンソールで作成したLIFFアプリのIDを入力してください。この端末のブラウザに保存され、次回から自動で使われます。</small>
+  <div class="btn-row">
+    <button id="saveLiffIdBtn">保存して初期化</button>
+  </div>
+</section>
+
+<section id="composeSection" style="display:none;">
+  <h2>② メッセージ作成</h2>
+
+  <label for="titleInput">タイトル</label>
+  <input type="text" id="titleInput" placeholder="例: 今週の予定について">
+
+  <label for="bodyInput">本文</label>
+  <textarea id="bodyInput" placeholder="本文を入力"></textarea>
+
+  <label for="imageInput">画像URL（任意）</label>
+  <input type="url" id="imageInput" placeholder="https://example.com/image.jpg">
+
+  <label>ボタン（任意・最大4つ）</label>
+  <div id="linkRows"></div>
+  <button type="button" class="secondary" id="addLinkBtn">＋ ボタンを追加</button>
+
+  <div class="btn-row">
+    <button id="sendBtn">送信先を選んで送信</button>
+    <button class="secondary" id="resetLiffBtn">LIFF ID再設定</button>
+  </div>
+</section>
+
+<section id="previewSection" style="display:none;">
+  <h2>プレビュー</h2>
+  <div class="preview" id="previewCard"></div>
+</section>
+
+<footer>個人利用向け・LINE公式のLIFF機能を使用しています</footer>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const statusEl = $('status');
+
+function showStatus(msg, type){
+  statusEl.textContent = msg;
+  statusEl.className = type;
+}
+
+function getSavedLiffId(){
+  return localStorage.getItem('liffId') || '';
+}
+
+let linkRowCount = 0;
+function addLinkRow(label='', url=''){
+  if (linkRowCount >= 4) return;
+  linkRowCount++;
+  const row = document.createElement('div');
+  row.className = 'link-row';
+  row.innerHTML = `
+    <input type="text" class="linkLabel" placeholder="ボタン文言" value="${label.replace(/"/g,'&quot;')}">
+    <input type="url" class="linkUrl" placeholder="https://..." value="${url.replace(/"/g,'&quot;')}">
+    <button type="button" class="ghost removeLinkBtn">✕</button>
+  `;
+  row.querySelector('.removeLinkBtn').addEventListener('click', () => {
+    row.remove();
+    linkRowCount--;
+    renderPreview();
+  });
+  row.querySelectorAll('input').forEach(i => i.addEventListener('input', renderPreview));
+  $('linkRows').appendChild(row);
+}
+
+$('addLinkBtn').addEventListener('click', () => addLinkRow());
+
+function collectLinks(){
+  const rows = document.querySelectorAll('#linkRows .link-row');
+  const links = [];
+  rows.forEach(r => {
+    const label = r.querySelector('.linkLabel').value.trim();
+    const url = r.querySelector('.linkUrl').value.trim();
+    if (label && url) links.push({label, url});
+  });
+  return links;
+}
+
+function renderPreview(){
+  const title = $('titleInput').value.trim();
+  const body = $('bodyInput').value.trim();
+  const image = $('imageInput').value.trim();
+  const links = collectLinks();
+
+  if (!title && !body && !image && links.length === 0){
+    $('previewSection').style.display = 'none';
+    return;
+  }
+  $('previewSection').style.display = 'block';
+
+  let html = '';
+  if (image) html += `<img src="${image}" alt="">`;
+  html += `<div class="preview-body">`;
+  if (title) html += `<p class="preview-title">${escapeHtml(title)}</p>`;
+  if (body) html += `<p class="preview-text">${escapeHtml(body)}</p>`;
+  html += `</div>`;
+  if (links.length){
+    html += `<div class="preview-buttons">`;
+    links.forEach(l => html += `<a href="${l.url}" target="_blank" rel="noopener">${escapeHtml(l.label)}</a>`);
+    html += `</div>`;
+  }
+  $('previewCard').innerHTML = html;
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+['titleInput','bodyInput','imageInput'].forEach(id => {
+  $(id).addEventListener('input', renderPreview);
+});
+
+function buildFlexMessage(){
+  const title = $('titleInput').value.trim();
+  const body = $('bodyInput').value.trim();
+  const image = $('imageInput').value.trim();
+  const links = collectLinks();
+
+  const bodyContents = [];
+  if (title) bodyContents.push({ type:'text', text:title, weight:'bold', size:'md', wrap:true });
+  if (body) bodyContents.push({ type:'text', text:body, size:'sm', color:'#8c8c8c', wrap:true, margin: title ? 'md' : 'none' });
+  if (bodyContents.length === 0) bodyContents.push({ type:'text', text:' ', size:'sm' });
+
+  const bubble = {
+    type: 'bubble',
+    body: { type:'box', layout:'vertical', contents: bodyContents }
+  };
+  if (image){
+    bubble.hero = { type:'image', url:image, size:'full', aspectRatio:'20:13', aspectMode:'cover' };
+  }
+  if (links.length){
+    bubble.footer = {
+      type:'box', layout:'vertical', spacing:'sm',
+      contents: links.map(l => ({
+        type:'button', style:'link', height:'sm',
+        action:{ type:'uri', label:l.label.slice(0,40), uri:l.url }
+      }))
+    };
+  }
+
+  const altText = (title || body || 'メッセージ').slice(0,60);
+  return { type:'flex', altText, contents: bubble };
+}
+
+$('sendBtn').addEventListener('click', async () => {
+  const flex = buildFlexMessage();
+  try{
+    if (!liff.isApiAvailable('shareTargetPicker')){
+      showStatus('この環境ではshareTargetPickerが使えません。LINEアプリ内で開いてください。', 'err');
+      return;
+    }
+    const res = await liff.shareTargetPicker([flex]);
+    if (res){
+      showStatus('送信しました。', 'ok');
+    }else{
+      showStatus('送信先の選択がキャンセルされました。', 'info');
+    }
+  }catch(e){
+    showStatus('送信に失敗しました: ' + e.message, 'err');
+  }
+});
+
+$('resetLiffBtn').addEventListener('click', () => {
+  localStorage.removeItem('liffId');
+  location.reload();
+});
+
+$('saveLiffIdBtn').addEventListener('click', async () => {
+  const id = $('liffIdInput').value.trim();
+  if (!id){
+    showStatus('LIFF IDを入力してください。', 'err');
+    return;
+  }
+  localStorage.setItem('liffId', id);
+  await initLiff(id);
+});
+
+async function initLiff(liffId){
+  try{
+    showStatus('初期化中...', 'info');
+    await liff.init({ liffId });
+    if (!liff.isLoggedIn()){
+      liff.login();
+      return;
+    }
+    $('setupSection').style.display = 'none';
+    $('composeSection').style.display = 'block';
+    if (document.querySelectorAll('#linkRows .link-row').length === 0) addLinkRow();
+    showStatus('準備完了。メッセージを作成して送信できます。', 'ok');
+  }catch(e){
+    showStatus('初期化に失敗しました: ' + e.message + '（LIFF IDを確認してください）', 'err');
+  }
+}
+
+(function boot(){
+  const saved = getSavedLiffId();
+  if (saved){
+    $('liffIdInput').value = saved;
+    initLiff(saved);
+  }
+})();
+</script>
+</body>
+</html>

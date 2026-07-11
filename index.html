@@ -113,8 +113,10 @@
     <button id="sendBtn" disabled>送信先を選んで送信</button>
   </div>
   <small class="hint">
-    ※ オプチャに直接送信したい場合：このページのURLを、送りたいオプチャの中に一度メッセージとして貼っておき、<b>そのオプチャの中からそのリンクをタップして</b>このページを開いてください。それ以外の開き方（LIFF ID再設定直後など）だと「送信先を選んで送信」になり、オプチャは選択肢に出ません。
+    ※ オプチャに直接送信したい場合：下の<b>LIFF URL</b>（GitHub PagesのURLではありません）を、送りたいオプチャの中に一度メッセージとして貼っておき、<b>そのオプチャの中からそのリンクをタップして</b>このページを開いてください。それ以外の開き方（LIFF ID再設定直後など）だと「送信先を選んで送信」になり、オプチャは選択肢に出ません。
   </small>
+  <label style="margin-top:14px;">オプチャに貼るLIFF URL</label>
+  <input type="text" id="liffUrlDisplay" readonly onclick="this.select()">
 </section>
 
 <section id="previewSection" style="display:none;">
@@ -332,6 +334,7 @@ async function initLiff(liffId){
     }
     $('setupSection').style.display = 'none';
     $('composeSection').style.display = 'block';
+    $('liffUrlDisplay').value = 'https://liff.line.me/' + liffId;
 
     const ctx = liff.getContext ? liff.getContext() : null;
     if (ctx && DIRECT_SEND_CONTEXTS.includes(ctx.type) && liff.isApiAvailable('sendMessages')){
